@@ -39,13 +39,14 @@
 .eqv spike_inside 0x00dfdfdf
 .eqv spike_outline 0x002f2f2f	
 .eqv board_back 0x004a4a4a
-.eqv yellow 0x0000ffff
+.eqv yellow 0x00ffeb3b
 .eqv red 0x00ff0000
 .eqv blue_pants 0x000000ff
 
 .data
 .align 2
 buffer_copy: .space 32768	# copy of the bufferframe for static elements
+player_position: .word 0
 
 .text
 main:
@@ -69,14 +70,13 @@ end_loop_paint_sky:
 	
 	addi $t1, $t1, 256	# skip a line
 	addi $t2, $t2, 4864 	# $t2 = new target address (64px * 20px * 4 bytes per unit - 256 (last line) = 4864 )
-	li $t3, 61	# units per row
 	li $t4, 0	# counter for inner start_loop
 	li $t0, board_back
 start_loop_paint_board2:
 	bge $t1, $t2, end_loop_paint_board2	# run while $t1 < $t2
 	addi $t1, $t1, 4	# skip first pixel
 start_loop_paint_board1:
-	bgt $t4, $t3, end_loop_paint_board1	# run while $t4 < 62
+	bgt $t4, 61, end_loop_paint_board1	# run while $t4 < 61
 	sub $s5, $t1, $t9	# calculate relative location in the buffer
 	add $s5, $s5, $s6	# location in the copy buffer
 	sw $t0, 0($s5)		# save a copy into static
@@ -98,16 +98,15 @@ end_loop_paint_board2:
 	addi $t1, $t9, 2560	# row 10 unit 0
 	addi $t2, $t9, 2812	# row 10 unit 63
 	li $t3, 0	# $t3 = counter for 12 spikes
-	li $t4, 12	# $t4 = target for $t3
+	li $t4, 12
 	li $t5, 0	# $t5 = counter for first 3 pixels
-	li $t6, 3	# $t6 = target for $t5
+	li $t6, 3	# $t6 = target for $t5 and $t8
 	li $t7, 0	# $t7 = counter for last 4 pixels
-	li $t8, 3	# $t8 = target for $t7
 start_loop_paint_spike1: # outline of the spike
 	bge $t3, $t4, end_loop_paint_spike1	# run while $t3 < 12
 	addi $s3, $t6, 2	# $s3 = heigth of next fill, starts at 5
 start_loop_paint_spike2: # top 4 pixels + filling
-	bge $t5, $t6, end_loop_paint_spike2	# run while $t5 < 4
+	bge $t5, $t6, end_loop_paint_spike2	# run while $t5 < 3
 	
 	sub $s5, $t1, $t9	# calculate relative location in the buffer
 	add $s5, $s5, $s6	# location in the copy buffer
@@ -150,7 +149,7 @@ end_loop_paint_spike4:
 end_loop_paint_spike2:
 
 start_loop_paint_spike3:	#bottom 3 pixels
-	bge $t7, $t8, end_loop_paint_spike3	# run while $t7 < 3
+	bge $t7, $t6, end_loop_paint_spike3	# run while $t7 < 3
 	sub $s5, $t1, $t9	# calculate relative location in the buffer
 	add $s5, $s5, $s6	# location in the copy buffer
 	sw $t0, 0($s5)		# save a copy into static
@@ -188,12 +187,12 @@ end_loop_paint_spike1:
 	# bottom spikes 
 	addi $t1, $t9, 27392	# $t1 = row 107 unit 0
 	li $t3, 0
-	li $t4, 8		# draw 7 spikes
+	li $t4, 8
 start_loop_paint_spike5: # outline of the spike
 	bge $t3, $t4, end_loop_paint_spike5	# run while $t3 < 8
 	addi $s3, $t6, 2	# $s3 = width of next fill, starts at 5
 start_loop_paint_spike6: # left 4 pixels + filling
-	bge $t5, $t6, end_loop_paint_spike6	# run while $t5 < 4
+	bge $t5, $t6, end_loop_paint_spike6	# run while $t5 < 3
 	sub $s5, $t1, $t9	# calculate relative location in the buffer
 	add $s5, $s5, $s6	# location in the copy buffer
 	sw $t0, 0($s5)		# save a copy into static
@@ -221,7 +220,7 @@ end_loop_paint_spike8:
 end_loop_paint_spike6:
 
 start_loop_paint_spike7:	# bottom 3 pixels
-	bge $t7, $t8, end_loop_paint_spike7	# run while $t7 < 3
+	bge $t7, $t6, end_loop_paint_spike7	# run while $t7 < 3
 	sub $s5, $t1, $t9	# calculate relative location in the buffer
 	add $s5, $s5, $s6	# location in the copy buffer
 	sw $t0, 0($s5)		# save a copy into static
@@ -244,5 +243,329 @@ end_loop_paint_spike7:
 	j start_loop_paint_spike5
 end_loop_paint_spike5:
 
+
+	la $s7, player_position		# set initial player position
+	addi $t1, $t9, 16512
+	sw $t1, 0($s7)		# $t1 = initial player position
+	move $a0, $t1
+	li $a1, 1
+	jal draw_character
+start_loop_main:
+	
+	li $t9, 0xffff0000	# check for key press
+	lw $t8, 0($t9)
+	bne $t8, 1, no_press
+	jal keypress_handle	# we are here so a key was pressed 
+no_press:
+	
+	li $v0, 32
+	li $a0, 50 # Wait 50ms (20 FPS)
+	syscall
+
+	j start_loop_main
+end_loop_main:
+	
 	li $v0, 10 # terminate the program gracefully
 	syscall
+	
+keypress_handle:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	la $s2, player_position		
+	lw $s0, 0($s2)	# $s0 = current player position
+	lw $s1, 4($t9)  # $s1 = pressed key
+	bne $s1, 0x61, not_a
+	move $a0, $s0		# we are here so 'a' was pressed
+	li $a1, 0
+	jal draw_character
+	addi $s0, $s0, -4
+	sw $s0, 0($s2)		# update player position	
+	move $a0, $s0
+	li $a1, 1
+	jal draw_character
+	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4	# restore $ra and return
+	jr $ra
+not_a:	bne $s1, 0x64, not_d
+	move $a0, $s0		# we are here so 'd' was pressed
+	li $a1, 0
+	jal draw_character
+	addi $s0, $s0, 4
+	sw $s0, 0($s2)		# update player position	
+	move $a0, $s0
+	li $a1, 1
+	jal draw_character
+	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4	# restore $ra and return
+	jr $ra
+not_d:	bne $s1, 0x73, not_s
+	move $a0, $s0		# we are here so 's' was pressed
+	li $a1, 0
+	jal draw_character
+	addi $s0, $s0, 256
+	sw $s0, 0($s2)		# update player position	
+	move $a0, $s0
+	li $a1, 1
+	jal draw_character
+	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4	# restore $ra and return
+	jr $ra
+not_s:	bne $s1, 0x77, not_w
+	move $a0, $s0		# we are here so 'w' was pressed
+	li $a1, 0
+	jal draw_character
+	addi $s0, $s0, -256
+	sw $s0, 0($s2)		# update player position	
+	move $a0, $s0
+	li $a1, 1
+	jal draw_character
+	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4	# restore $ra and return
+	jr $ra
+not_w:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4	# restore $ra and return
+	jr $ra
+draw_character: 
+# $a0 = position, $a1 = 0 for erase, 1 for draw. Uses: $t0-3, $a0
+	beqz $a1, draw_chatacter_erase	# erase if $a0 == 0
+	li $t0, blue_pants		# we are here so draw at $a0
+	addi $a0, $a0, -4
+	sw $t0, 0($a0)
+	addi $a0, $a0, 8
+	sw $t0, 0($a0)
+	addi $a0, $a0, -768
+	sw $t0, 0($a0)
+	addi $a0, $a0, -8
+	sw $t0, 0($a0)
+	addi $a0, $a0, -256
+	sw $t0, 0($a0)
+	addi $a0, $a0, 4
+	sw $t0, 0($a0)
+	addi $a0, $a0, 4
+	sw $t0, 0($a0)
+	li $t0, red
+	addi $a0, $a0, -256
+	sw $t0, 0($a0)
+	addi $a0, $a0, -4
+	sw $t0, 0($a0)
+	addi $a0, $a0, -4
+	sw $t0, 0($a0)
+	addi $a0, $a0, -256
+	sw $t0, 0($a0)
+	addi $a0, $a0, 4
+	sw $t0, 0($a0)
+	addi $a0, $a0, 4
+	sw $t0, 0($a0)
+	addi $a0, $a0, -256
+	sw $t0, 0($a0)
+	addi $a0, $a0, 4
+	sw $t0, 0($a0)
+	addi $a0, $a0, -8
+	sw $t0, 0($a0)
+	addi $a0, $a0, -4
+	sw $t0, 0($a0)
+	addi $a0, $a0, -4
+	sw $t0, 0($a0)
+	li $t0, yellow
+	addi $a0, $a0, 256
+	sw $t0, 0($a0)
+	addi $a0, $a0, 256
+	sw $t0, 0($a0)
+	addi $a0, $a0, 256
+	sw $t0, 0($a0)
+	addi $a0, $a0, 16
+	sw $t0, 0($a0)
+	addi $a0, $a0, -256
+	sw $t0, 0($a0)
+	addi $a0, $a0, -256
+	sw $t0, 0($a0)
+	addi $a0, $a0, -516
+	sw $t0, 0($a0)
+	addi $a0, $a0, -4
+	sw $t0, 0($a0)
+	addi $a0, $a0, -4
+	sw $t0, 0($a0)
+	addi $a0, $a0, -256
+	sw $t0, 0($a0)
+	addi $a0, $a0, 4
+	sw $t0, 0($a0)
+	addi $a0, $a0, 4
+	sw $t0, 0($a0)
+	addi $a0, $a0, -256
+	sw $t0, 0($a0)
+	addi $a0, $a0, -4
+	sw $t0, 0($a0)
+	addi $a0, $a0, -4
+	sw $t0, 0($a0)
+	addi $a0, $a0, 2048
+	sw $t0, 0($a0)
+	addi $a0, $a0, 256
+	sw $t0, 0($a0)
+	addi $a0, $a0, 8
+	sw $t0, 0($a0)
+	addi $a0, $a0, -256
+	sw $t0, 0($a0)
+	
+	jr $ra	# return
+draw_chatacter_erase: # we are here so erase at $a0
+	la $t2, buffer_copy	# load address of static reference
+	la $t1, BASE_ADDRESS	# load address of $gp
+	sub $t3, $a0, $t1	# offset in framebuffer
+	add $t3, $t2, $t3	# location in buffer_copy
+	
+	addi $t3, $t3, -4
+	addi $a0, $a0, -4
+	lw $t0, 0($t3)
+	sw $t0, 0($a0)
+	addi $t3, $t3, 8	
+	addi $a0, $a0, 8
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -768
+	addi $a0, $a0, -768
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -8	
+	addi $a0, $a0, -8
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -256	
+	addi $a0, $a0, -256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 4	
+	addi $a0, $a0, 4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 4	
+	addi $a0, $a0, 4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -256	
+	addi $a0, $a0, -256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -4	
+	addi $a0, $a0, -4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -4	
+	addi $a0, $a0, -4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -256	
+	addi $a0, $a0, -256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 4	
+	addi $a0, $a0, 4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 4	
+	addi $a0, $a0, 4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -256	
+	addi $a0, $a0, -256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 4	
+	addi $a0, $a0, 4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -8	
+	addi $a0, $a0, -8
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -4	
+	addi $a0, $a0, -4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -4	
+	addi $a0, $a0, -4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 256	
+	addi $a0, $a0, 256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 256	
+	addi $a0, $a0, 256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 256	
+	addi $a0, $a0, 256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 16	
+	addi $a0, $a0, 16
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -256	
+	addi $a0, $a0, -256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -256	
+	addi $a0, $a0, -256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -516
+	addi $a0, $a0, -516
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -4	
+	addi $a0, $a0, -4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -4
+	addi $a0, $a0, -4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -256	
+	addi $a0, $a0, -256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 4	
+	addi $a0, $a0, 4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 4	
+	addi $a0, $a0, 4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -256	
+	addi $a0, $a0, -256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -4	
+	addi $a0, $a0, -4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -4	
+	addi $a0, $a0, -4
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 2048	
+	addi $a0, $a0, 2048
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 256	
+	addi $a0, $a0, 256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, 8	
+	addi $a0, $a0, 8
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+	addi $t3, $t3, -256
+	addi $a0, $a0, -256
+	lw $t0, 0($t3) 	
+	sw $t0, 0($a0)
+
+	jr $ra 	# return
