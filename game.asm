@@ -39,24 +39,36 @@
 .eqv spike_inside 0x00dfdfdf
 .eqv spike_outline 0x002f2f2f	
 .eqv board_back 0x004a4a4a
+.eqv yellow 0x0000ffff
+.eqv red 0x00ff0000
+.eqv blue_pants 0x000000ff
 
 .data
+.align 2
+buffer_copy: .space 32768	# copy of the bufferframe for static elements
 
 .text
 main:
 	# paint the sky, scoreboard and spikes
+	li $t9, BASE_ADDRESS
 	li $t0, blue
-	li $t1, BASE_ADDRESS	# $t1 is the counter
+	move $t1, $t9	# $t1 is the counter
 	addi $t2, $t1, 27648	# $t2 = target address (64px * 108px * 4 bytes per unit = 27648)
+	la $s6, buffer_copy	# load location of copy bufferframe
+	
 start_loop_paint_sky:
 	bge $t1, $t2, end_loop_paint_sky	# run while $t1 < $t2
+	sub $s5, $t1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
 	sw $t0, 0($t1)		# set the unit to blue
 	addi $t1, $t1, 4	# increment counter
 	j start_loop_paint_sky	
 end_loop_paint_sky:	
 	
 	addi $t1, $t1, 256	# skip a line
-	addi $t2, $t2, 5120 	# $t2 = target address (64px * 20px * 4 bytes per unit - 256 (last line) = 5120 )
+	addi $t2, $t2, 4864 	# $t2 = new target address (64px * 20px * 4 bytes per unit - 256 (last line) = 4864 )
 	li $t3, 61	# units per row
 	li $t4, 0	# counter for inner start_loop
 	li $t0, board_back
@@ -65,6 +77,10 @@ start_loop_paint_board2:
 	addi $t1, $t1, 4	# skip first pixel
 start_loop_paint_board1:
 	bgt $t4, $t3, end_loop_paint_board1	# run while $t4 < 62
+	sub $s5, $t1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
 	sw $t0, 0($t1)		# set the unit to board_back (dark grey)
 	addi $t1, $t1, 4	# increment counters
 	addi $t4, $t4, 1	
@@ -74,10 +90,10 @@ end_loop_paint_board1:
 	addi $t1, $t1, 4	# skip last pixel 
 	j start_loop_paint_board2
 end_loop_paint_board2:
+
 	# left and right spikes 
 	li $t0, spike_outline
 	li $s7, spike_inside
-	li $t9, BASE_ADDRESS
 	# pointer for each side of the wall. $t1 is left, $t2 is right
 	addi $t1, $t9, 2560	# row 10 unit 0
 	addi $t2, $t9, 2812	# row 10 unit 63
@@ -92,16 +108,34 @@ start_loop_paint_spike1: # outline of the spike
 	addi $s3, $t6, 2	# $s3 = heigth of next fill, starts at 5
 start_loop_paint_spike2: # top 4 pixels + filling
 	bge $t5, $t6, end_loop_paint_spike2	# run while $t5 < 4
+	
+	sub $s5, $t1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
+	sub $s5, $t2, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
 	sw $t0, 0($t1)		# set the units to spike_outline (dark grey)
 	sw $t0, 0($t2)
 	
 	move $s0, $s3		# get height of next fill
 	move $s1, $t1		# copy current pointers
-	move $s2, $t2
+	move $s2, $t2		# $s1 = $t1, $s2 = $t2
 start_loop_paint_spike4:	# filling
 	blez $s0, end_loop_paint_spike4	# run while $s0 > 0	
 	addi $s1, $s1, 256	# move down one row
 	addi $s2, $s2, 256
+	
+	sub $s5, $s1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $s7, 0($s5)		# save a copy into static
+	
+	sub $s5, $s2, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $s7, 0($s5)		# save a copy into static
+	
 	sw $s7, 0($s1)		# set the units to spike_inside (grey)
 	sw $s7, 0($s2)
 	addi $s0, $s0, -1	# decrement
@@ -117,6 +151,14 @@ end_loop_paint_spike2:
 
 start_loop_paint_spike3:	#bottom 3 pixels
 	bge $t7, $t8, end_loop_paint_spike3	# run while $t7 < 3
+	sub $s5, $t1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
+	sub $s5, $t2, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
 	sw $t0, 0($t1)		# set the units to spike_outline (dark grey)
 	sw $t0, 0($t2)
 	addi $t1, $t1, 252	# go down 1 left 1
@@ -125,6 +167,14 @@ start_loop_paint_spike3:	#bottom 3 pixels
 	j start_loop_paint_spike3
 end_loop_paint_spike3:
 
+	sub $s5, $t1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
+	sub $s5, $t2, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
 	sw $t0, 0($t1)		# last pixel before next spike
 	sw $t0, 0($t2)
 	li $t5, 0	# $t5 = counter for first 4 pixels
@@ -144,13 +194,21 @@ start_loop_paint_spike5: # outline of the spike
 	addi $s3, $t6, 2	# $s3 = width of next fill, starts at 5
 start_loop_paint_spike6: # left 4 pixels + filling
 	bge $t5, $t6, end_loop_paint_spike6	# run while $t5 < 4
+	sub $s5, $t1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
 	sw $t0, 0($t1)		# set the units to spike_outline (dark grey)
 	
 	move $s0, $s3		# get width of next fill
-	move $s1, $t1		# copy current pointer
+	move $s1, $t1		# copy current pointer, $s1 = $t1
 start_loop_paint_spike8:	# filling
 	blez $s0, end_loop_paint_spike8	# run while $s0 > 0	
 	addi $s1, $s1, 4	# move right one pixel
+	sub $s5, $s1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $s7, 0($s5)		# save a copy into static
+	
 	sw $s7, 0($s1)		# set the units to spike_inside (grey)
 	addi $s0, $s0, -1	# decrement
 	j start_loop_paint_spike8
@@ -164,12 +222,20 @@ end_loop_paint_spike6:
 
 start_loop_paint_spike7:	# bottom 3 pixels
 	bge $t7, $t8, end_loop_paint_spike7	# run while $t7 < 3
+	sub $s5, $t1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
 	sw $t0, 0($t1)		# set the units to spike_outline (dark grey)
 	addi $t1, $t1, 260	# go down 1 right 1
 	addi $t7, $t7, 1	# increment counter
 	j start_loop_paint_spike7
 end_loop_paint_spike7:
 
+	sub $s5, $t1, $t9	# calculate relative location in the buffer
+	add $s5, $s5, $s6	# location in the copy buffer
+	sw $t0, 0($s5)		# save a copy into static
+	
 	sw $t0, 0($t1)		# last pixel before next spike
 	li $t5, 0	# $t5 = counter for first 4 pixels
 	li $t7, 0	# $t7 = counter for last 3 pixels
