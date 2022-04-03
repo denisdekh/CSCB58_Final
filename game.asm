@@ -23,6 +23,8 @@
 # 4. win condition: timer
 # 5. health bar and timer (score)
 # 6. enemies shoot back
+# 7. moving objects (enemy)
+# total: 11 marks (overdid it, oops)
 #
 # Link to video demonstration for final submission:
 # - coming soon
