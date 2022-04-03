@@ -1,5 +1,4 @@
 #####################################################################
-#
 # CSCB58 Winter 2022 Assembly Final Project
 # University of Toronto, Scarborough
 #
@@ -27,14 +26,14 @@
 # total: 11 marks (overdid it, oops)
 #
 # Link to video demonstration for final submission:
-# - coming soon
+# - https://youtu.be/BPrUhosfRgA
 #
 # Are you OK with us sharing the video with people outside course staff?
 # - yes and please share this project github link as well https://github.com/Umenemo/CSCB58_Final 
 #  (Private and can't be accessed until end of semester as per the handout)
 #
 # Any additional information that the TA needs to know: 
-# - made the game a bit hard, to make it easier to win "timer" can be set lower to finish faster
+# - made the game a bit hard, to make it easier to win "timer" can be set lower to finish faster (line 88)
 #####################################################################
 .eqv BASE_ADDRESS 0x10008000
 .eqv blue 0x0056c9ef
@@ -500,7 +499,7 @@ still_invincible:
 take_damage:	# $s3 = health of player
 	addi $s3, $s3, -1	# take off 1 health
 	beqz $s3, game_over
-	li $s4, 60		# invincible = 65 cycles (2.4 seconds of invincibility at 40ms sleep)
+	li $s4, 75		# invincible = 75 cycles (3 seconds of invincibility at 40ms sleep)
 	move $a0, $s3
 	li $a1, red	
 	jal draw_health		# update health bar
