@@ -5,4 +5,4 @@ A Platformer game from scratch in MIPS assembler
 Made by: Denis Dekhtyarenko, denis.dakh@gmail.com
 
 ### Link to video demonstration:
-  https://youtu.be/BPrUhosfRgA
+[![Demonstration Link](https://img.youtube.com/vi/BPrUhosfRgA/0.jpg)](https://youtu.be/BPrUhosfRgA) 
