@@ -2,7 +2,7 @@
 
 A Platformer game from scratch in MIPS assembler
 
-Made by: Denis Dekhtyarenko, denis.dakh@gmail.com
+Made by: Denis Dekhtyarenko, denis.dekh@gmail.com
 
 ### Link to video demonstration:
 [![Demonstration Link](https://img.youtube.com/vi/BPrUhosfRgA/0.jpg)](https://youtu.be/BPrUhosfRgA) 
